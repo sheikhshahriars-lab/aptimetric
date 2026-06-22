@@ -1,101 +1,154 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
+
+const supabase = createClient();
+import type { User } from "@supabase/supabase-js";
 
 export default function DashboardPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(true)
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getUser = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        router.push('/login')
-        return
+    const loadUser = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) {
+        router.push("/login");
+        return;
       }
-
-      setEmail(user.email ?? '')
-      setLoading(false)
-    }
-
-    getUser()
-  }, [router])
+      setUser(data.user);
+      setLoading(false);
+    };
+    loadUser();
+  }, [router]);
 
   const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
-  }
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white flex items-center justify-center">
-        <p className="text-sm text-gray-400 tracking-widest uppercase">Loading...</p>
-      </main>
-    )
+      <>
+        <div className="aurora" />
+        <div className="noise" />
+        <div className="min-h-screen grid place-items-center">
+          <div className="text-slate-400 text-sm">Loading your dashboard…</div>
+        </div>
+      </>
+    );
   }
 
+  const firstName = user?.email?.split("@")[0] ?? "there";
+
   return (
-    <main className="min-h-screen bg-white">
+    <>
+      <div className="aurora" />
+      <div className="noise" />
 
-      {/* Top nav */}
-      <nav className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div>
-          <span className="text-sm font-bold tracking-tight text-black">APTIMETRIC</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-gray-500">{email}</span>
-          <button
-            onClick={handleLogout}
-            className="text-xs border border-gray-300 px-3 py-1.5 text-black hover:bg-black hover:text-white transition-colors"
-          >
-            Log out
-          </button>
-        </div>
-      </nav>
-
-      {/* Content */}
-      <div className="max-w-3xl mx-auto px-6 py-16">
-        <div className="mb-12">
-          <h1 className="text-3xl font-bold text-black tracking-tight">Dashboard</h1>
-          <p className="text-gray-500 mt-2 text-sm">Welcome to Aptimetric. Your assessment platform is ready.</p>
-        </div>
-
-        {/* Status cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
-          <div className="border border-gray-200 p-5">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Tests Taken</p>
-            <p className="text-2xl font-bold text-black">0</p>
-          </div>
-          <div className="border border-gray-200 p-5">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">IQ Score</p>
-            <p className="text-2xl font-bold text-black">—</p>
-          </div>
-          <div className="border border-gray-200 p-5">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Percentile</p>
-            <p className="text-2xl font-bold text-black">—</p>
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <a href="/" className="flex items-center gap-3">
+              <div className="size-9 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 grid place-items-center shadow-lg shadow-indigo-500/25">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 3v18M3 12h18M7 7l10 10M17 7L7 17" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div>
+                <div className="font-display font-bold text-lg leading-none tracking-tight">
+                  aptimetric<span className="text-indigo-400">.org</span>
+                </div>
+                <div className="text-[10px] uppercase tracking-widest text-slate-400 font-medium">Cognitive Labs</div>
+              </div>
+            </a>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass glass-hover text-sm font-semibold text-white transition"
+            >
+              Sign out
+            </button>
           </div>
         </div>
+      </header>
 
-        {/* CTA */}
-        <div className="border border-black p-8 text-center">
-          <h2 className="text-lg font-semibold text-black mb-2">Ready to measure your intelligence?</h2>
-          <p className="text-sm text-gray-500 mb-6">The full assessment takes 20–40 minutes across 6 cognitive domains.</p>
-          <button
-            disabled
-            className="bg-black text-white text-sm font-medium px-8 py-3 opacity-40 cursor-not-allowed"
-          >
-            Begin Assessment — Coming Soon
-          </button>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        <div className="mb-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-slate-200 mb-4">
+            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+            Account active
+          </div>
+          <h1 className="font-display font-extrabold text-3xl sm:text-4xl tracking-tight">
+            Welcome back, <span className="gradient-text">{firstName}</span>
+          </h1>
+          <p className="mt-2 text-slate-400">{user?.email}</p>
         </div>
-      </div>
 
-    </main>
-  )
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 relative overflow-hidden glass rounded-[2rem] p-8 sm:p-10">
+            <div className="absolute -inset-10 bg-gradient-to-br from-indigo-600/20 to-cyan-500/20 blur-3xl rounded-full pointer-events-none" />
+            <div className="relative">
+              <h2 className="font-display font-bold text-2xl sm:text-3xl tracking-tight">
+                You haven&apos;t taken the test yet
+              </h2>
+              <p className="mt-3 text-slate-300 max-w-md">
+                Get your full cognitive profile: IQ score, percentile, confidence interval, and a 5-domain
+                breakdown. Takes about 18 minutes.
+              </p>
+              <button className="shimmer mt-6 inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-cyan-400 text-white font-semibold shadow-xl shadow-indigo-500/25 hover:opacity-95 transition">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Start the Official Test
+              </button>
+            </div>
+          </div>
+
+          <div className="glass rounded-[2rem] p-8 flex flex-col">
+            <h3 className="font-display font-bold text-lg mb-4">Your stats</h3>
+            <div className="space-y-4 flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-400">Tests completed</span>
+                <span className="font-semibold">0</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-400">Latest IQ score</span>
+                <span className="font-semibold text-slate-500">—</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-400">Percentile</span>
+                <span className="font-semibold text-slate-500">—</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-400">Certificate</span>
+                <span className="font-semibold text-slate-500">Not available</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            "Fluid Reasoning",
+            "Quantitative Reasoning",
+            "Visual-Spatial Ability",
+            "Working Memory",
+            "Verbal Reasoning",
+            "Processing Speed",
+          ].map((domain) => (
+            <div key={domain} className="glass rounded-2xl p-5">
+              <div className="text-sm text-slate-300">{domain}</div>
+              <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div className="h-full w-0 bg-gradient-to-r from-indigo-500 to-cyan-400" />
+              </div>
+              <div className="mt-2 text-xs text-slate-500">Not yet measured</div>
+            </div>
+          ))}
+        </div>
+      </main>
+    </>
+  );
 }

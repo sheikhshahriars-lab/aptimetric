@@ -1,99 +1,100 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
+
+const supabase = createClient();
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    setLoading(true)
-    setError('')
-
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
     if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
+      setError(error.message);
+      return;
     }
-
-    router.push('/dashboard')
-    router.refresh()
-  }
+    router.push("/dashboard");
+  };
 
   return (
-    <main className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-
-        {/* Logo */}
-        <div className="mb-10 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-black">APTIMETRIC</h1>
-          <p className="text-xs text-gray-400 mt-1 tracking-widest uppercase">Measure What Matters</p>
-        </div>
-
-        {/* Card */}
-        <div className="border border-gray-200 p-8">
-          <h2 className="text-lg font-semibold text-black mb-1">Welcome back</h2>
-          <p className="text-sm text-gray-500 mb-6">Sign in to your account</p>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1 uppercase tracking-wide">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-gray-300 px-3 py-2 text-sm text-black focus:outline-none focus:border-black transition-colors"
-                placeholder="you@example.com"
-              />
+    <>
+      <div className="aurora" />
+      <div className="noise" />
+      <div className="min-h-screen flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <a href="/" className="flex items-center justify-center gap-3 mb-8">
+            <div className="size-9 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 grid place-items-center shadow-lg shadow-indigo-500/25">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3v18M3 12h18M7 7l10 10M17 7L7 17" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
             </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1 uppercase tracking-wide">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full border border-gray-300 px-3 py-2 text-sm text-black focus:outline-none focus:border-black transition-colors"
-                placeholder="Your password"
-              />
+            <div className="font-display font-bold text-lg tracking-tight">
+              aptimetric<span className="text-indigo-400">.org</span>
             </div>
+          </a>
 
-            {error && (
-              <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2">{error}</p>
-            )}
+          <div className="glass rounded-[2rem] p-8 shadow-2xl">
+            <h1 className="font-display font-bold text-2xl tracking-tight text-center">Welcome back</h1>
+            <p className="mt-2 text-sm text-slate-400 text-center">Sign in to view your results dashboard.</p>
 
-            <button
-              onClick={handleLogin}
-              disabled={loading}
-              className="w-full bg-black text-white text-sm font-medium py-2.5 hover:bg-gray-800 transition-colors disabled:opacity-50"
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
+            <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+              <div>
+                <label className="text-sm text-slate-300 mb-1 block">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-900/80 border border-white/10 focus:border-indigo-500 outline-none text-white"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-slate-300 mb-1 block">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-900/80 border border-white/10 focus:border-indigo-500 outline-none text-white"
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-2 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-cyan-400 font-bold text-white shadow-xl shadow-indigo-500/25 hover:opacity-95 transition disabled:opacity-60"
+              >
+                {loading ? "Signing in…" : "Sign in"}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-slate-400">
+              Don&apos;t have an account?{" "}
+              <a href="/signup" className="text-indigo-400 hover:text-indigo-300 font-medium">
+                Sign up
+              </a>
+            </p>
           </div>
-
-          <p className="text-xs text-gray-500 mt-6 text-center">
-            Don&apos;t have an account?{' '}
-            <Link href="/signup" className="text-black font-medium underline">
-              Sign up
-            </Link>
-          </p>
         </div>
-
       </div>
-    </main>
-  )
+    </>
+  );
 }
