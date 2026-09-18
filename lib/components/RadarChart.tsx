@@ -1,6 +1,6 @@
 // lib/components/RadarChart.tsx
 // Dependency-free SVG radar chart for the 6 cognitive domains.
-// Labels are laid out in reserved lanes so they can never clip.
+// Axis labels are anchored to their own vertices and never overlap.
 
 "use client";
 
@@ -15,7 +15,7 @@ export interface RadarDatum {
 const ANGLE_START = -90; // 12 o'clock
 const MIN_IQ = 70;
 const MAX_IQ = 150;
-const LANE = 92; // pixels reserved for labels on each side
+const LABEL_GAP = 14; // px between a vertex and its label
 
 function polarToCartesian(cx: number, cy: number, radius: number, angleDeg: number) {
   const rad = (angleDeg * Math.PI) / 180;
@@ -30,7 +30,7 @@ function splitLabel(label: string): [string, string | null] {
 
 function useContainerWidth() {
   const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(320);
+  const [width, setWidth] = useState(340);
 
   useEffect(() => {
     const el = ref.current;
@@ -51,12 +51,12 @@ export default function RadarChart({
   animate?: boolean;
 }) {
   const { ref, width } = useContainerWidth();
-  const size = Math.max(240, Math.min(width, 420));
+  const size = Math.max(240, Math.min(width, 400));
 
   const cx = size / 2;
   const cy = size / 2;
-  const inner = size - LANE * 2;
-  const R = Math.max(56, Math.min(inner * 0.46, size * 0.3));
+  // Shrink the web enough that side labels always have room next to vertices.
+  const R = Math.max(52, Math.min(size * 0.3, (cx - 96) / 0.87));
   const n = data.length;
 
   const radiusFor = (iq: number) =>
@@ -99,8 +99,7 @@ export default function RadarChart({
           fill="none"
           stroke="rgba(148,163,184,0.5)"
           strokeWidth="1"
-          strokeDasharray={n > 0 ? `${Math.PI * 2 * R * meanRing / n / 2},${Math.PI * 2 * R * meanRing / n / 2}` : "4,4"}
-          style={meanRing <= 0 ? { display: "none" } : undefined}
+          strokeDasharray="5,5"
         />
         {/* spokes */}
         {data.map((d, i) => {
@@ -143,17 +142,32 @@ export default function RadarChart({
             />
           );
         })}
-        {/* labels (two lines max, inside reserved lanes) */}
+        {/* labels — each anchored to its own vertex, outside the web */}
         {data.map((d, i) => {
           const angle = ANGLE_START + i * (360 / n);
           const end = polarToCartesian(cx, cy, R, angle);
-          const isLeft = end.x < LANE;
-          const isRight = end.x > size - LANE;
+          const dx = end.x - cx;
+          const dy = end.y - cy;
+          const nearVertical = Math.abs(dx) < 8;
+          const isTop = nearVertical && dy < 0;
+          const isBottom = nearVertical && dy > 0;
+          const isLeft = !nearVertical && dx < 0;
+
           const [word1, word2] = splitLabel(d.label);
-          const anchor = isLeft ? "end" : isRight ? "start" : "middle";
-          const labelX = isLeft ? LANE - 2 : isRight ? size - LANE + 2 : cx;
-          const labelY =
-            Math.abs(end.y - cy) < R * 0.15 ? cy + 4 : end.y < cy ? cy - R - 14 : cy + R + 10;
+          const anchor = isTop || isBottom ? "middle" : isLeft ? "end" : "start";
+          let labelX = cx;
+          let labelY: number;
+          if (isTop) {
+            labelY = Math.max(14, end.y - LABEL_GAP - 6);
+          } else if (isBottom) {
+            labelY = Math.min(size - 6, end.y + LABEL_GAP + 4);
+          } else if (isLeft) {
+            labelX = Math.max(4, end.x - LABEL_GAP);
+            labelY = end.y + 4;
+          } else {
+            labelX = Math.min(size - 4, end.x + LABEL_GAP);
+            labelY = end.y + 4;
+          }
 
           return (
             <text
