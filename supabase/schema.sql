@@ -360,7 +360,10 @@ grant execute on function public.admin_set_profile(uuid, text, text) to authenti
 -- DONE. After running, verify:
 --   1) Open Table Editor → you should see profiles, assessment_results,
 --      organizations, invitations tables.
---   2) Run this in SQL Editor to make sure you are admin:
---        select public.app_is_admin();
---      It should return true (the owner email row was promoted above).
+--   2) Run this in SQL Editor to confirm the owner was promoted. NOTE:
+--      the editor runs as the postgres role, so auth.uid() is empty here
+--      and app_is_admin() will return false even when all is well:
+--        select u.email, p.role, p.plan
+--        from public.profiles p join auth.users u on u.id = p.id;
+--      The owner's row should show role = 'admin' and plan = 'premium'.
 -- =====================================================================
