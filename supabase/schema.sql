@@ -2,30 +2,11 @@
 -- APTIMETRIC — DATABASE SCHEMA (run ONCE in Supabase Dashboard → SQL Editor)
 -- Run this entire script top-to-bottom. It is safe to run: creates
 -- profiles, results, organizations, invitations + RLS + SQL functions.
+-- NOTE: tables are created BEFORE the functions/policies that reference
+-- them, so the script runs cleanly from top to bottom.
 -- =====================================================================
 
--- 1. SECURITY HELPER FUNCTIONS ----------------------------------------
-create or replace function public.app_role()
-returns text
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select coalesce((select role from public.profiles where id = auth.uid()), 'user');
-$$;
-
-create or replace function public.app_is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists(select 1 from public.profiles where id = auth.uid() and role = 'admin');
-$$;
-
--- 2. PROFILES ----------------------------------------------------------
+-- 1. PROFILES TABLE + SIGNUP TRIGGER ----------------------------------
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   full_name   text not null default '',
@@ -35,15 +16,6 @@ create table if not exists public.profiles (
 );
 
 alter table public.profiles enable row level security;
-
-drop policy if exists "profiles select own" on public.profiles;
-create policy "profiles select own" on public.profiles
-  for select using (auth.uid() = id or public.app_is_admin());
-
-drop policy if exists "profiles update own" on public.profiles;
-create policy "profiles update own" on public.profiles
-  for update using (auth.uid() = id or public.app_is_admin())
-  with check (auth.uid() = id or public.app_is_admin());
 
 -- auto-create a profile when a brand-new signup happens
 create or replace function public.handle_new_user()
@@ -77,7 +49,38 @@ set role = 'admin', plan = 'premium'
 from auth.users u
 where p.id = u.id and u.email = 'sheikhshahriars@gmail.com';
 
--- 3. ASSESSMENT RESULTS -------------------------------------------------
+-- 2. SECURITY HELPER FUNCTIONS ----------------------------------------
+create or replace function public.app_role()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((select role from public.profiles where id = auth.uid()), 'user');
+$$;
+
+create or replace function public.app_is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists(select 1 from public.profiles where id = auth.uid() and role = 'admin');
+$$;
+
+-- 3. PROFILES POLICIES -------------------------------------------------
+drop policy if exists "profiles select own" on public.profiles;
+create policy "profiles select own" on public.profiles
+  for select using (auth.uid() = id or public.app_is_admin());
+
+drop policy if exists "profiles update own" on public.profiles;
+create policy "profiles update own" on public.profiles
+  for update using (auth.uid() = id or public.app_is_admin())
+  with check (auth.uid() = id or public.app_is_admin());
+
+-- 4. ASSESSMENT RESULTS -------------------------------------------------
 create table if not exists public.assessment_results (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid not null references auth.users(id) on delete cascade,
@@ -112,7 +115,7 @@ create policy "results select own" on public.assessment_results
 
 create index if not exists results_user_idx on public.assessment_results (user_id, completed_at desc);
 
--- 4. ORGANIZATIONS (recruiter accounts) ---------------------------------
+-- 5. ORGANIZATIONS (recruiter accounts) ---------------------------------
 create table if not exists public.organizations (
   id         uuid primary key default gen_random_uuid(),
   owner_id   uuid not null references auth.users(id) on delete cascade,
@@ -135,7 +138,7 @@ create policy "orgs update owner" on public.organizations
   for update using (owner_id = auth.uid() or public.app_is_admin())
   with check (owner_id = auth.uid() or public.app_is_admin());
 
--- 5. INVITATIONS ---------------------------------------------------------
+-- 6. INVITATIONS ---------------------------------------------------------
 create table if not exists public.invitations (
   id             uuid primary key default gen_random_uuid(),
   org_id         uuid not null references public.organizations(id) on delete cascade,
@@ -168,7 +171,7 @@ create policy "invitations insert owner" on public.invitations
 create index if not exists invitations_token_idx on public.invitations (token);
 create index if not exists invitations_org_idx on public.invitations (org_id, invited_at desc);
 
--- 6. RECRUITER + CANDIDATE SQL FUNCTIONS ----------------------------------
+-- 7. RECRUITER + CANDIDATE SQL FUNCTIONS ----------------------------------
 create or replace function public.create_organization(p_name text)
 returns uuid
 language plpgsql
@@ -303,7 +306,7 @@ begin
 end;
 $$;
 
--- 7. ADMIN SQL FUNCTIONS ---------------------------------------------------
+-- 8. ADMIN SQL FUNCTIONS ---------------------------------------------------
 create or replace function public.admin_users()
 returns table(id uuid, email text, full_name text, plan text, role text, created_at timestamptz)
 language plpgsql
@@ -340,7 +343,7 @@ begin
 end;
 $$;
 
--- 8. GRANTS ----------------------------------------------------------------
+-- 9. GRANTS ----------------------------------------------------------------
 grant execute on function public.app_role() to authenticated;
 grant execute on function public.app_is_admin() to authenticated;
 grant execute on function public.create_organization(text) to authenticated;
