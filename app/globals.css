@@ -1,30 +1,39 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-:root {
-  --font-sans: var(--font-plus-jakarta), system-ui, -apple-system, sans-serif;
-  --font-display: var(--font-space-grotesk), var(--font-plus-jakarta), sans-serif;
+  --font-plus-jakarta: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-space-grotesk: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: #020617;
+  --color-foreground: #e2e8f0;
+  --font-sans: var(--font-plus-jakarta);
+  --font-display: var(--font-space-grotesk);
 }
+
 .font-display {
   font-family: var(--font-display);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: #020617;
   color: #e2e8f0;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+
+::selection {
+  background: rgba(99, 102, 241, 0.35);
+  color: #fff;
+}
+
+/* ---------- Background layers ---------- */
 
 .aurora {
   position: fixed;
@@ -41,9 +50,11 @@ body {
   inset: 0;
   z-index: -1;
   opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
   pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
+
+/* ---------- Glass surfaces ---------- */
 
 .glass {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
@@ -53,7 +64,7 @@ body {
 }
 
 .glass-hover:hover {
-  border-color: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.18);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
 }
 
@@ -70,7 +81,7 @@ body {
 }
 
 .shimmer::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(110deg, transparent 40%, rgba(255, 255, 255, 0.2) 50%, transparent 60%);
@@ -78,17 +89,13 @@ body {
   animation: shimmer 3s infinite;
 }
 
-@keyframes shimmer {
-  100% {
-    transform: translateX(100%);
-  }
-}
-
 .tick {
   background: conic-gradient(from 0deg, #22d3ee, #818cf8, #c084fc, #22d3ee);
   padding: 1px;
   border-radius: 9999px;
 }
+
+/* ---------- Scrollbar ---------- */
 
 ::-webkit-scrollbar {
   width: 10px;
@@ -108,14 +115,54 @@ body {
   background: #475569;
 }
 
+/* ---------- Animations ---------- */
+
 @keyframes float {
-  0%, 100% { transform: translateY(0) }
-  50% { transform: translateY(-10px) }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4) }
-  50% { box-shadow: 0 0 40px 0 rgba(99, 102, 241, 0.6) }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 40px 0 rgba(99, 102, 241, 0.6);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fill-bar {
+  from {
+    width: 0%;
+  }
 }
 
 .float {
@@ -124,6 +171,18 @@ body {
 
 .pulse-glow {
   animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.fade-up {
+  animation: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.pop-in {
+  animation: pop-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bar-fill {
+  animation: fill-bar 1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 #scrollProgress {
@@ -144,20 +203,83 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button {
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+
+/* Prevent layout shift during the test when a scrollbar appears/disappears */
+.test-scroll-lock {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ---------- Certificate ---------- */
+
+.certificate-sheet {
+  position: relative;
+  width: 794px;
+  min-height: 562px;
+  margin: 0 auto;
+  border-radius: 24px;
+  background: linear-gradient(160deg, #0b1224 0%, #101a35 55%, #0b1224 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 40px 120px -30px rgba(0, 0, 0, 0.8);
+  padding: 56px 64px;
+}
+
+.certificate-frame {
+  position: absolute;
+  inset: 18px;
+  border: 1px solid rgba(165, 180, 252, 0.35);
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+.certificate-frame-corner {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 2px solid rgba(103, 232, 249, 0.7);
+}
+
+@media print {
+  @page {
+    size: 794px 562px;
+    margin: 0;
+  }
+  html,
+  body {
+    background: #ffffff !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    margin: 0;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    transform: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
 }

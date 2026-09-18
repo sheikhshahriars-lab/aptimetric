@@ -1,13 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 
 const supabase = createClient();
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") ?? "/dashboard";
+
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,13 +30,20 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName.trim() },
+      },
+    });
     setLoading(false);
     if (error) {
       setError(error.message);
       return;
     }
-    router.push("/dashboard");
+    // If the new user needs confirmation email, still let them continue
+    router.push(next);
   };
 
   return (
@@ -32,7 +52,7 @@ export default function SignupPage() {
       <div className="noise" />
       <div className="min-h-screen flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
-          <a href="/" className="flex items-center justify-center gap-3 mb-8">
+          <Link href="/" className="flex items-center justify-center gap-3 mb-8" aria-label="Aptimetric home">
             <div className="size-9 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 grid place-items-center shadow-lg shadow-indigo-500/25">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                 <path d="M12 3v18M3 12h18M7 7l10 10M17 7L7 17" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
@@ -41,13 +61,23 @@ export default function SignupPage() {
             <div className="font-display font-bold text-lg tracking-tight">
               aptimetric<span className="text-indigo-400">.org</span>
             </div>
-          </a>
+          </Link>
 
           <div className="glass rounded-[2rem] p-8 shadow-2xl">
             <h1 className="font-display font-bold text-2xl tracking-tight text-center">Create your account</h1>
             <p className="mt-2 text-sm text-slate-400 text-center">Measure what matters. Takes 30 seconds.</p>
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+              <div>
+                <label className="text-sm text-slate-300 mb-1 block">Full name</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Your name (appears on your certificate)"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-900/80 border border-white/10 focus:border-indigo-500 outline-none text-white"
+                />
+              </div>
               <div>
                 <label className="text-sm text-slate-300 mb-1 block">Email</label>
                 <input
@@ -89,7 +119,7 @@ export default function SignupPage() {
 
             <p className="mt-6 text-center text-sm text-slate-400">
               Already have an account?{" "}
-              <a href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">
+              <a href={`/login${next !== "/dashboard" ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-indigo-400 hover:text-indigo-300 font-medium">
                 Sign in
               </a>
             </p>

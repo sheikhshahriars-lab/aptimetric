@@ -24,6 +24,8 @@ const CROSS = (
   </svg>
 );
 
+const UPGRADE_URL = process.env.NEXT_PUBLIC_UPGRADE_URL ?? "";
+
 export default function LandingPage() {
   const [scrollPct, setScrollPct] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -86,7 +88,7 @@ export default function LandingPage() {
     },
     {
       q: "Can I retake the test?",
-      a: "We recommend waiting at least 30 days between attempts to reduce practice effects. Pro users can retake after 30 days.",
+      a: "To keep results meaningful, you can retake the assessment once every 90 days. This reduces practice effects and mirrors professional IQ testing guidelines.",
     },
     {
       q: "Is my data private?",
@@ -748,7 +750,9 @@ export default function LandingPage() {
                 <li className="flex gap-2 opacity-60">{CROSS} No certificate</li>
                 <li className="flex gap-2 opacity-60">{CROSS} No subscale breakdown</li>
               </ul>
-              <button className="mt-8 w-full py-3 rounded-2xl glass glass-hover font-semibold">Start Free</button>
+              <a href="/test" className="mt-8 w-full py-3 rounded-2xl glass glass-hover font-semibold flex items-center justify-center transition">
+                Start Free Test
+              </a>
             </div>
             <div className="relative glass rounded-[2rem] p-8 flex flex-col border-indigo-500/50 shadow-2xl shadow-indigo-500/20 scale-[1.03]">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 text-xs font-bold text-white shadow-lg">
@@ -765,11 +769,18 @@ export default function LandingPage() {
                 <li className="flex gap-2">{CHECK} Official IQ score + percentile + CI</li>
                 <li className="flex gap-2">{CHECK} 5 subscale breakdown</li>
                 <li className="flex gap-2">{CHECK} Verifiable PDF certificate</li>
-                <li className="flex gap-2">{CHECK} Retake after 30 days</li>
+                <li className="flex gap-2">{CHECK} Retake after 90 days</li>
               </ul>
-              <button className="mt-8 w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-cyan-400 font-semibold text-white shadow-lg shadow-indigo-500/25 hover:opacity-95 transition">
-                Get Pro Results
-              </button>
+              {UPGRADE_URL ? (
+                <a
+                  href={UPGRADE_URL}
+                  className="mt-8 w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-cyan-400 font-semibold text-white shadow-lg shadow-indigo-500/25 hover:opacity-95 transition flex items-center justify-center"
+                >
+                  Get Pro Results
+                </a>
+              ) : (
+                <span className="mt-8 w-full py-3 rounded-2xl glass text-slate-300 text-center text-sm">Coming soon</span>
+              )}
             </div>
             <div className="glass rounded-[2rem] p-8 flex flex-col">
               <h3 className="font-display font-bold text-2xl">Premium</h3>
@@ -784,7 +795,16 @@ export default function LandingPage() {
                 <li className="flex gap-2">{CHECK} Career fit suggestions</li>
                 <li className="flex gap-2">{CHECK} Priority support</li>
               </ul>
-              <button className="mt-8 w-full py-3 rounded-2xl glass glass-hover font-semibold">Upgrade to Premium</button>
+              {UPGRADE_URL ? (
+                <a
+                  href={UPGRADE_URL}
+                  className="mt-8 w-full py-3 rounded-2xl glass glass-hover font-semibold flex items-center justify-center transition"
+                >
+                  Upgrade to Premium
+                </a>
+              ) : (
+                <span className="mt-8 w-full py-3 rounded-2xl glass text-slate-300 text-center text-sm">Coming soon</span>
+              )}
             </div>
           </div>
           <p className="text-center text-xs text-slate-500 mt-8">30-day money-back guarantee. Results are confidential and encrypted.</p>
@@ -920,25 +940,25 @@ export default function LandingPage() {
                 <li><a href="#how" className="hover:text-white">How it works</a></li>
                 <li><a href="#sample" className="hover:text-white">Sample test</a></li>
                 <li><a href="#pricing" className="hover:text-white">Pricing</a></li>
-                <li><a href="#" className="hover:text-white">Certificate verification</a></li>
+                <li><a href="/test" className="hover:text-white">Start the test</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-white mb-4">Company</h4>
+              <h4 className="font-semibold text-white mb-4">For teams</h4>
               <ul className="space-y-2 text-sm text-slate-400">
-                <li><a href="#" className="hover:text-white">About</a></li>
-                <li><a href="#" className="hover:text-white">Research</a></li>
-                <li><a href="#" className="hover:text-white">Careers</a></li>
-                <li><a href="#" className="hover:text-white">Contact</a></li>
+                <li><a href="/recruiter" className="hover:text-white">Recruiter portal</a></li>
+                <li><a href="/signup" className="hover:text-white">Create an account</a></li>
+                <li><a href="/login" className="hover:text-white">Sign in</a></li>
+                <li><a href="/admin" className="hover:text-white">Admin</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-white mb-4">Legal</h4>
               <ul className="space-y-2 text-sm text-slate-400">
-                <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-white">Terms of Service</a></li>
-                <li><a href="#" className="hover:text-white">Data Processing</a></li>
-                <li><a href="#" className="hover:text-white">Cookie Policy</a></li>
+                <li><a href="/law/privacy" className="hover:text-white">Privacy Policy</a></li>
+                <li><a href="/law/terms" className="hover:text-white">Terms of Service</a></li>
+                <li><a href="/law/privacy" className="hover:text-white">Data Processing</a></li>
+                <li><a href="/law/privacy" className="hover:text-white">Cookie Policy</a></li>
               </ul>
             </div>
           </div>
@@ -971,36 +991,38 @@ export default function LandingPage() {
                 </button>
               </div>
               <div className="space-y-4">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-slate-300 mb-1 block">Age</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 28"
-                      className="w-full px-4 py-3 rounded-xl bg-slate-900/80 border border-white/10 focus:border-indigo-500 outline-none text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-slate-300 mb-1 block">Education Level</label>
-                    <select className="w-full px-4 py-3 rounded-xl bg-slate-900/80 border border-white/10 focus:border-indigo-500 outline-none text-white">
-                      <option>High School</option>
-                      <option>Bachelor&apos;s</option>
-                      <option>Master&apos;s</option>
-                      <option>Doctorate</option>
-                    </select>
-                  </div>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  {[
+                    { icon: "◐", title: "Adaptive", text: "Tuned to your ability as you go." },
+                    { icon: "⏱", title: "~18 minutes", text: "48 questions across 6 domains." },
+                    { icon: "📄", title: "Real score", text: "IQ, percentile, and full profile." },
+                  ].map((f) => (
+                    <div key={f.title} className="glass rounded-2xl p-4">
+                      <div className="text-lg">{f.icon}</div>
+                      <div className="font-semibold text-sm mt-1">{f.title}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{f.text}</div>
+                    </div>
+                  ))}
                 </div>
                 <label className="flex items-start gap-3 text-sm text-slate-300 mt-4">
                   <input type="checkbox" className="mt-1 size-4 accent-indigo-500" />
-                  <span>I understand this is a timed assessment and I will complete it in a quiet environment without assistance.</span>
+                  <span>
+                    I understand this is a supervised assessment: I will complete it in a quiet environment, without
+                    assistance, and without switching tabs.
+                  </span>
                 </label>
                 <a
-                  href="/signup"
+                  href="/test"
                   className="w-full mt-6 py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-cyan-400 font-bold text-white text-lg shadow-xl shadow-indigo-500/25 hover:opacity-95 transition flex items-center justify-center"
                 >
                   Begin Test →
                 </a>
-                <p className="text-xs text-center text-slate-500">By starting, you agree to our Terms and Privacy Policy. Results are encrypted.</p>
+                <p className="text-xs text-center text-slate-500">
+                  By starting, you agree to our{" "}
+                  <a href="/law/terms" className="text-indigo-400 hover:text-indigo-300">Terms</a> and{" "}
+                  <a href="/law/privacy" className="text-indigo-400 hover:text-indigo-300">Privacy Policy</a>. Results
+                  are encrypted.
+                </p>
               </div>
             </div>
           </div>

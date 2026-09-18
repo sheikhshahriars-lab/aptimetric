@@ -1,13 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 
 const supabase = createClient();
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") ?? "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +34,7 @@ export default function LoginPage() {
       setError(error.message);
       return;
     }
-    router.push("/dashboard");
+    router.push(next);
   };
 
   return (
@@ -32,7 +43,7 @@ export default function LoginPage() {
       <div className="noise" />
       <div className="min-h-screen flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
-          <a href="/" className="flex items-center justify-center gap-3 mb-8">
+          <Link href="/" className="flex items-center justify-center gap-3 mb-8" aria-label="Aptimetric home">
             <div className="size-9 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 grid place-items-center shadow-lg shadow-indigo-500/25">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                 <path d="M12 3v18M3 12h18M7 7l10 10M17 7L7 17" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
@@ -41,7 +52,7 @@ export default function LoginPage() {
             <div className="font-display font-bold text-lg tracking-tight">
               aptimetric<span className="text-indigo-400">.org</span>
             </div>
-          </a>
+          </Link>
 
           <div className="glass rounded-[2rem] p-8 shadow-2xl">
             <h1 className="font-display font-bold text-2xl tracking-tight text-center">Welcome back</h1>
