@@ -1,0 +1,66 @@
+APTIMETRIC — SESSION HANDOFF
+Last updated: Session 6-12, 18 Sep 2026
+Repo: github.com/sheikhshahriars-lab/aptimetric  (branch: master, auto-deploy to Vercel)
+
+WHAT IS THIS
+Aptimetric is an adaptive IQ assessment platform in Next.js 16 (app router, Turbopack)
++ Tailwind v4 + Supabase. Sessions 1-2 established brand + auth + dashboard shell.
+Sessions 3-4 (see git log) built the CAT engine and the question bank generator.
+Sessions 6-12 completed the product end-to-end and deployed it.
+
+CURRENT STATE (all verified: npm run lint clean, npx tsc --noEmit clean, npm run build green)
+
+Pages:
+  /                 Landing (FAQ mentions 90-day retake; pricing CTA + Upgrade URL)
+  /signup /login    Auth, collects full_name, ?next= redirect support
+  /dashboard        Live results, profile, domain bars, admin/recruiter links
+  /test             Full 48-question adaptive assessment (8 x 6 domains), proctor,
+                    localStorage resume, invite-token mode
+  /results?id=...   IQ hero, radar chart, domain breakdown, history, premium paywall
+  /certificate/[id] Printable certificate, gated on plan=premium or role=admin
+  /admin            User/plan/role management via security-definer RPC
+  /recruiter        Org + email invites + copy link + revoke + stats
+  /invite/[token]    Candidate invite flow (can be used pre-login)
+  /law/privacy, /law/terms
+  /admin/questions  Read-only question browser (bonus)
+
+Key architecture:
+  lib/irt/scoring.ts 3PL IRT EAP scoring, IQ (mean 100, SD 15), CI, percentile,
+                      SEM, domain thetas, iqClassification. Client sends raw answers;
+                      /api/results recomputes server-side (never trusts the client).
+  lib/cat/*          domain sequencing, difficulty adaptation, question fetching
+                     (verbal from Supabase `questions` table with sourceId dedup,
+                     visual via local generators + ShapeSVG).
+  app/api/results    POST route: validates answers, enforces 90-day cooldown (423),
+                     server-side EAP scoring, proctor flagging (>=3 suspicious).
+  proxy.ts           protects /dashboard /test /results /certificate /admin /recruiter;
+                     ?next= redirect after login; admin/recruiter role checks via app_role RPC.
+  lib/hooks/useProctor.ts  tab-switch, blur, fast-answer (<700ms), long-pause tracking.
+
+Monetization (both built):
+  Consumer: free test, results preview + paywall (NEXT_PUBLIC_UPGRADE_URL) for full
+            report + certificate, retake cooldown 90 days.
+  B2B:      recruiter accounts create orgs + email invites; candidates take the test
+            via invite link; score auto-links to the invitation.
+
+DATABASE — ACTION REQUIRED
+The full schema is in supabase/schema.sql (committed). Run it ONCE in
+Supabase Dashboard -> SQL Editor (creates profiles, assessment_results,
+organizations, invitations, RLS, SQL functions, admin backfill).
+Owner email sheikhshahriars@gmail.com is auto-promoted to admin+premium.
+Verify:  select public.app_is_admin();  -- must return true
+
+ENV VARS
+  .env.local (exists) + Vercel: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ADD NEXT_PUBLIC_UPGRADE_URL to both (Stripe/ Lemon Squeezy checkout link) for the
+  results-page paywall buttons; absent = buttons hidden.
+
+VERIFICATION
+  npm run dev -> sign up -> take /test -> results save to /api/results (needs migration run)
+  Login as owner -> /admin and /recruiter visible.
+
+KNOWN NEXT STEPS
+  - Real payment gateway (stripe or lemon squeezy) pointed at NEXT_PUBLIC_UPGRADE_URL,
+    webhook to flip plan=premium.
+  - Populate/proofread the `questions` table (generators exist in lib/generators/).
+  - Content: SEO copy, og images, blog for traffic.
