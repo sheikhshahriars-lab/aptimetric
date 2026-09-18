@@ -218,12 +218,13 @@ function ResultsContent() {
           {/* Radar */}
           <div className="glass rounded-[2rem] p-6 flex flex-col items-center justify-center">
             <h3 className="font-display font-bold text-lg self-start mb-2">Cognitive profile</h3>
-            <RadarChart data={radarData} size={Math.min(360, typeof window !== "undefined" ? window.innerWidth - 80 : 360)} />
+            <RadarChart data={radarData} />
           </div>
 
           {/* Domain bars */}
           <div className="glass rounded-[2rem] p-6 sm:p-8 flex flex-col">
-            <h3 className="font-display font-bold text-lg mb-5">Domain breakdown</h3>
+            <h3 className="font-display font-bold text-lg mb-1">Domain breakdown</h3>
+            <div className="text-[11px] text-slate-500 mb-5">Scale: 0–160 (100 = average). Dashed line marks the mean.</div>
             <div className="space-y-4 flex-1">
               {radarData.map((d) => (
                 <div key={d.key}>
@@ -231,10 +232,14 @@ function ResultsContent() {
                     <span className="text-slate-300">{d.label}</span>
                     <span className="font-semibold tabular-nums">{Math.round(d.iq)}</span>
                   </div>
-                  <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                  <div className="relative h-2 rounded-full bg-slate-800 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 bar-fill"
-                      style={{ width: `${Math.max(4, ((d.iq - 55) / 105) * 100)}%` }}
+                      className="absolute inset-y-0 left-[62.5%] w-px bg-slate-400/70"
+                      title="Average (100)"
+                    />
+                    <div
+                      className="relative h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 bar-fill"
+                      style={{ width: `${Math.max(2, Math.min(100, (d.iq / 160) * 100))}%` }}
                     />
                   </div>
                 </div>
