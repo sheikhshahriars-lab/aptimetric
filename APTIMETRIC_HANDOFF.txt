@@ -1,5 +1,5 @@
 APTIMETRIC — SESSION HANDOFF
-Last updated: Session 6-12, 18 Sep 2026
+Last updated: Session 6-13, 19 Sep 2026
 Repo: github.com/sheikhshahriars-lab/aptimetric  (branch: master, auto-deploy to Vercel)
 
 WHAT IS THIS
@@ -14,8 +14,10 @@ Pages:
   /                 Landing (FAQ mentions 90-day retake; pricing CTA + Upgrade URL)
   /signup /login    Auth, collects full_name, ?next= redirect support
   /dashboard        Live results, profile, domain bars, admin/recruiter links
-  /test             Full 48-question adaptive assessment (8 x 6 domains), proctor,
-                    localStorage resume, invite-token mode
+  /test             Full 60-question adaptive assessment (10 x 6 domains), 12-point
+                    difficulty scale, ability-targeted CAT, timed processing-speed +
+                    working-memory subtests (20s / 30s), proctor, localStorage resume,
+                    invite-token mode
   /results?id=...   IQ hero, radar chart, domain breakdown, history, premium paywall
   /certificate/[id] Printable certificate, gated on plan=premium or role=admin
   /admin            User/plan/role management via security-definer RPC
@@ -25,14 +27,20 @@ Pages:
   /admin/questions  Read-only question browser (bonus)
 
 Key architecture:
+  lib/irt/itemParams.ts  Single source of truth for the 12-point difficulty scale
+                     and its theta mapping (difficultyToB / thetaToDifficulty).
   lib/irt/scoring.ts 3PL IRT EAP scoring, IQ (mean 100, SD 15), CI, percentile,
-                      SEM, domain thetas, iqClassification. Client sends raw answers;
+                      SEM, domain thetas, iqClassification, plus per-subtest scaled
+                      scores (WAIS-style: mean 10, SD 3). Client sends raw answers;
                       /api/results recomputes server-side (never trusts the client).
-  lib/cat/*          domain sequencing, difficulty adaptation, question fetching
-                     (verbal from Supabase `questions` table with sourceId dedup,
-                     visual via local generators + ShapeSVG).
-  app/api/results    POST route: validates answers, enforces 90-day cooldown (423),
-                     server-side EAP scoring, proctor flagging (>=3 suspicious).
+  lib/cat/*          domain sequencing, ability-targeted difficulty adaptation
+                     (QUESTIONS_PER_DOMAIN=10), timed-subtest limits, question
+                     fetching (verbal from Supabase `questions` table with sourceId
+                     dedup, visual via local generators + ShapeSVG).
+  app/api/results    POST route: validates answers (difficulty 1-12, 60 max),
+                     enforces 90-day cooldown (423), derives age_band, server-side
+                     EAP scoring, stores subtest breakdown + age_band, proctor
+                     flagging (>=3 suspicious).
   proxy.ts           protects /dashboard /test /results /certificate /admin /recruiter;
                      ?next= redirect after login; admin/recruiter role checks via app_role RPC.
   lib/hooks/useProctor.ts  tab-switch, blur, fast-answer (<700ms), long-pause tracking.
@@ -50,6 +58,15 @@ organizations, invitations, RLS, SQL functions, admin backfill).
 Owner email sheikhshahriars@gmail.com is auto-promoted to admin+premium.
 Verify:  select public.app_is_admin();  -- must return true
 
+Session 6-13 also added supabase/migration_clinical.sql (paste ONCE into the same
+SQL Editor). It adds profiles.birth_year, assessment_results.age_band, updates the
+signup trigger, and rescales the existing `questions.difficulty` values from the old
+1-5 scale to the new 1-12 scale. Safe to run once; existing results are untouched.
+Verify after running:
+  select count(*) from public.questions where difficulty > 12;            -- 0
+  select column_name from information_schema.columns
+    where table_name = 'profiles' and column_name = 'birth_year';         -- 1 row
+
 ENV VARS
   .env.local (exists) + Vercel: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
   ADD NEXT_PUBLIC_UPGRADE_URL to both (Stripe/ Lemon Squeezy checkout link) for the
@@ -62,5 +79,7 @@ VERIFICATION
 KNOWN NEXT STEPS
   - Real payment gateway (stripe or lemon squeezy) pointed at NEXT_PUBLIC_UPGRADE_URL,
     webhook to flip plan=premium.
+  - Age norms: birth_year + age_band are now collected and stored; true age-adjusted
+    norms require a normative sample to calibrate band-specific means/SDs.
   - Populate/proofread the `questions` table (generators exist in lib/generators/).
   - Content: SEO copy, og images, blog for traffic.

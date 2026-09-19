@@ -9,6 +9,15 @@ import { DOMAIN_LABELS } from "@/lib/irt/scoring";
 import RadarChart from "@/lib/components/RadarChart";
 import Logo from "@/lib/components/Logo";
 
+interface SubtestRow {
+  subdomain: string;
+  theta: number;
+  sem: number;
+  iq: number;
+  scaled: number;
+  count: number;
+}
+
 interface ResultRow {
   id: string;
   iq_score: number;
@@ -18,13 +27,35 @@ interface ResultRow {
   overall_theta: number;
   overall_sem: number;
   classification: string;
-  domains: Record<string, { iq: number; theta: number; sem: number; percentile: number; ciLow: number; ciHigh: number }>;
+  domains: Record<
+    string,
+    {
+      iq: number;
+      theta: number;
+      sem: number;
+      percentile: number;
+      ciLow: number;
+      ciHigh: number;
+      subtests?: SubtestRow[];
+    }
+  >;
   answers: { domain: string; subdomain: string; difficulty: number; correct: boolean; timeMs: number }[];
   domain_counts: Record<string, number>;
   duration_ms: number;
   status: string;
   completed_at: string;
+  age_band?: string | null;
 }
+
+const AGE_BAND_LABELS: Record<string, string> = {
+  under_18: "Under 18",
+  "18_24": "18–24",
+  "25_34": "25–34",
+  "35_44": "35–44",
+  "45_54": "45–54",
+  "55_64": "55–64",
+  "65_plus": "65+",
+};
 
 interface ProfileRow {
   plan: string;
@@ -119,7 +150,7 @@ function ResultsContent() {
           <div className="text-4xl mb-4">📊</div>
           <h1 className="font-display font-bold text-2xl">No results yet</h1>
           <p className="mt-2 text-slate-400 max-w-sm">
-            You haven&apos;t completed the full assessment. It takes about 18 minutes.
+            You haven&apos;t completed the full assessment. It takes about 20 minutes.
           </p>
           <button
             onClick={() => router.push("/test")}
@@ -212,6 +243,11 @@ function ResultsContent() {
               <div className="mt-1 text-xs text-slate-500">
                 95% confidence: {result.iq_ci_lower} – {result.iq_ci_upper}
               </div>
+              {result.age_band && AGE_BAND_LABELS[result.age_band] && (
+                <div className="mt-1 text-[11px] text-slate-500">
+                  Age norm group: {AGE_BAND_LABELS[result.age_band]}
+                </div>
+              )}
             </div>
           </div>
 
@@ -242,6 +278,20 @@ function ResultsContent() {
                       style={{ width: `${Math.max(2, Math.min(100, (d.iq / 160) * 100))}%` }}
                     />
                   </div>
+                  {result.domains[d.key]?.subtests && result.domains[d.key].subtests!.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {result.domains[d.key].subtests!.map((s) => (
+                        <span
+                          key={s.subdomain}
+                          title={`Subtest scaled score ${s.scaled}/19 (mean 10)`}
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-slate-400 capitalize"
+                        >
+                          {s.subdomain.replace(/_/g, " ")}
+                          <span className="font-bold text-slate-100 tabular-nums">{s.scaled}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

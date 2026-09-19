@@ -88,6 +88,14 @@ export async function POST(request: NextRequest) {
   const suspicious = clampInt(payload.suspicious, 0, 1000);
   const durationMs = clampInt(payload.durationMs, 0, 3_600_000 * 6);
 
+  // Optional age band from the user's profile (age-norm scaffolding).
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("birth_year")
+    .eq("id", user.id)
+    .maybeSingle();
+  const age_band = computeAgeBand(profile?.birth_year ?? null);
+
   const domains: Record<string, unknown> = {};
   for (const [key, est] of Object.entries(score.domains)) {
     domains[key] = {
@@ -97,6 +105,7 @@ export async function POST(request: NextRequest) {
       percentile: est.percentile,
       ciLow: est.ciLow,
       ciHigh: est.ciHigh,
+      subtests: score.subtests[key] ?? [],
     };
   }
 
@@ -119,6 +128,7 @@ export async function POST(request: NextRequest) {
       suspicious: suspicious,
       status: suspicious >= 3 ? "flagged" : "completed",
       invitation_token: payload.invitationToken || null,
+      age_band,
     })
     .select("id, iq_score, percentile, iq_ci_lower, iq_ci_upper, completed_at")
     .single();
@@ -130,6 +140,20 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ result: row }, { status: 201 });
 }
 
+// Map an optional birth year onto a coarse age band for future norming.
+function computeAgeBand(birthYear: number | null, now: Date = new Date()): string | null {
+  if (!birthYear || !Number.isFinite(birthYear)) return null;
+  const age = now.getFullYear() - birthYear;
+  if (age < 0 || age > 120) return null;
+  if (age < 18) return "under_18";
+  if (age <= 24) return "18_24";
+  if (age <= 34) return "25_34";
+  if (age <= 44) return "35_44";
+  if (age <= 54) return "45_54";
+  if (age <= 64) return "55_64";
+  return "65_plus";
+}
+
 function normalizeAnswers(raw: unknown): AnswerSummary[] {
   if (!Array.isArray(raw)) return [];
   const out: AnswerSummary[] = [];
@@ -138,13 +162,14 @@ function normalizeAnswers(raw: unknown): AnswerSummary[] {
     const difficulty = Number(item.difficulty);
     const correct = Boolean(item.correct);
     if (!VALID_DOMAINS.includes(item.domain)) continue;
-    if (!Number.isFinite(difficulty) || difficulty < 1 || difficulty > 5) continue;
+    if (!Number.isFinite(difficulty) || difficulty < 1 || difficulty > 12) continue;
     out.push({
       domain: item.domain,
       subdomain: String(item.subdomain ?? ""),
       difficulty,
       correct,
       timeMs: Math.max(0, Math.min(3_600_000, Number(item.timeMs) || 0)),
+      timedOut: Boolean(item.timedOut),
     });
   }
   return out.slice(0, 60);

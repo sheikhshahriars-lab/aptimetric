@@ -184,7 +184,7 @@ export default function LandingPage() {
               </h1>
               <p className="mt-6 text-lg text-slate-300 leading-relaxed max-w-xl">
                 Aptimetric is a scientifically validated, adaptive IQ test built by psychometricians. Get a real
-                IQ score, percentile, cognitive profile, and certificate in under 18 minutes.
+                IQ score, percentile, cognitive profile, and certificate in under 20 minutes.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <button
@@ -994,7 +994,7 @@ export default function LandingPage() {
                 <div className="grid sm:grid-cols-3 gap-3">
                   {[
                     { icon: "◐", title: "Adaptive", text: "Tuned to your ability as you go." },
-                    { icon: "⏱", title: "~18 minutes", text: "48 questions across 6 domains." },
+                    { icon: "⏱", title: "~20 minutes", text: "60 questions across 6 domains." },
                     { icon: "📄", title: "Real score", text: "IQ, percentile, and full profile." },
                   ].map((f) => (
                     <div key={f.title} className="glass rounded-2xl p-4">

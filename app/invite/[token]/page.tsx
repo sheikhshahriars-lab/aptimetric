@@ -191,7 +191,7 @@ export default function InvitePage() {
             <div className="text-xs uppercase tracking-widest text-cyan-300 font-semibold mb-2">Official assessment</div>
             <h1 className="font-display font-bold text-2xl">{view.invite.org_name}</h1>
             <p className="mt-2 text-slate-400 text-sm">
-              You&apos;ve been selected to complete an adaptive cognitive assessment. It takes about 18 minutes and your
+              You&apos;ve been selected to complete an adaptive cognitive assessment. It takes about 20 minutes and your
               score will be shared with {view.invite.org_name}.
             </p>
           </div>

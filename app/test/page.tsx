@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createInitialSession, CATSession, AnsweredQuestion } from "@/lib/types/catSession";
 import { getNextQuestion, NextQuestionResult } from "@/lib/cat/getNextQuestion";
-import { updateSessionAfterAnswer, QUESTIONS_PER_DOMAIN } from "@/lib/cat/engine";
+import { updateSessionAfterAnswer, QUESTIONS_PER_DOMAIN, timeLimitForDomain } from "@/lib/cat/engine";
 import { DOMAIN_LABELS } from "@/lib/irt/scoring";
 import type { AnswerSummary } from "@/lib/irt/scoring";
 import { createClient } from "@/lib/supabase";
@@ -49,6 +49,8 @@ function TestRunner() {
   const [fetching, setFetching] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
+  const [timeLeftMs, setTimeLeftMs] = useState<number | null>(null);
   const [hasSaved] = useState(() => {
     // A test interrupted by a refresh can be resumed from localStorage.
     if (typeof window === "undefined") return false;
@@ -87,6 +89,65 @@ function TestRunner() {
     }
   }, []);
 
+  const handleTimeoutRef = useRef<() => void>(() => {});
+
+  // Recording an answer when a timed subtest expires.
+  const recordTimeoutAnswer = useCallback(() => {
+    if (!session || !current || selected !== null || timedOut) return;
+    const limit = timeLimitForDomain(current.domain);
+    if (!limit) return;
+    proctor.reportAnswer(limit);
+
+    const answered: AnsweredQuestion = {
+      question: current.question,
+      userAnswer: "__TIMEOUT__",
+      correct: false,
+      timeMs: limit,
+      timedOut: true,
+    };
+
+    const updated = updateSessionAfterAnswer(session, current.domain, answered);
+    const summary: AnswerSummary = {
+      domain: current.domain,
+      subdomain: current.question.subdomain,
+      difficulty: current.question.difficulty,
+      correct: false,
+      timeMs: limit,
+      timedOut: true,
+    };
+    answersRef.current = [...answersRef.current, summary];
+
+    setSession(updated);
+    setTimedOut(true);
+    persist(updated, answersRef.current);
+  }, [session, current, selected, timedOut, proctor, persist]);
+
+  // Keep the timeout handler current without reading/writing refs during render.
+  useEffect(() => {
+    handleTimeoutRef.current = recordTimeoutAnswer;
+  });
+
+  // Live countdown for timed subtests (processing_speed, working_memory).
+  useEffect(() => {
+    if (!current || !session) return;
+    if (selected !== null || timedOut || fetching || session.isComplete) return;
+    const limit = timeLimitForDomain(current.domain);
+    if (!limit) return;
+
+    const started = questionStartRef.current;
+    const iv = setInterval(() => {
+      const remain = Math.max(0, limit - (Date.now() - started));
+      if (remain <= 0) {
+        clearInterval(iv);
+        setTimeLeftMs(0);
+        handleTimeoutRef.current();
+      } else {
+        setTimeLeftMs(remain);
+      }
+    }, 200);
+    return () => clearInterval(iv);
+  }, [current, session, selected, timedOut, fetching]);
+
   const clearStored = useCallback(() => {
     try {
       localStorage.removeItem(STORAGE_KEY);
@@ -103,6 +164,8 @@ function TestRunner() {
     setSession(s);
     setCurrent(null);
     setSelected(null);
+    setTimedOut(false);
+    setTimeLeftMs(null);
     setPhase("running");
     setFetching(true);
     const next = await fetchFirstQuestion(s);
@@ -179,6 +242,8 @@ function TestRunner() {
       startedAtRef.current = stored.startedAt;
       setSession(s);
       setSelected(null);
+      setTimedOut(false);
+      setTimeLeftMs(null);
       setPhase("running");
       setFetching(true);
       const next = await getNextQuestion(s);
@@ -232,6 +297,8 @@ function TestRunner() {
       return;
     }
     setSelected(null);
+    setTimedOut(false);
+    setTimeLeftMs(null);
     setFetching(true);
     const next = await getNextQuestion(session);
     setFetching(false);
@@ -247,6 +314,7 @@ function TestRunner() {
   const progressPct = Math.round((answeredCount / TOTAL_QUESTIONS) * 100);
 
   const question = current?.question;
+  const reveal = selected !== null || timedOut;
 
   return (
     <>
@@ -281,8 +349,9 @@ function TestRunner() {
               The <span className="gradient-text">Adaptive Cognitive Assessment</span>
             </h1>
             <p className="mt-4 text-slate-300 max-w-xl">
-              About 48 questions across 6 cognitive domains. The test adapts to you —
-              harder when you&apos;re doing well, easier when you&apos;re not. Takes around 18 minutes.
+              About 60 questions across 6 cognitive domains. The test adapts to you —
+              harder when you&apos;re doing well, easier when you&apos;re not. The processing
+              speed and working memory subtests are timed. Takes around 20 minutes.
             </p>
 
             {orgName && (
@@ -294,7 +363,7 @@ function TestRunner() {
             <div className="mt-8 grid sm:grid-cols-3 gap-3 text-sm">
               {[
                 { icon: "◐", title: "Adaptive difficulty", text: "Questions tune to your ability in real time." },
-                { icon: "⏱", title: "Answer honestly", text: "No time limit per question — accuracy matters." },
+                { icon: "⏱", title: "Timed subtests", text: "Two subtests run on a countdown — answer promptly but accurately." },
                 { icon: "🔒", title: "One sitting", text: "Don't close or switch tabs. Results are final." },
               ].map((f) => (
                 <div key={f.title} className="glass rounded-2xl p-4">
@@ -378,6 +447,28 @@ function TestRunner() {
                   </span>
                 </div>
 
+                {timeLeftMs !== null && !reveal && current && timeLimitForDomain(current.domain) && (
+                  <div className="mb-6">
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span className="text-cyan-200 font-medium">Timed subtest — answer before the timer runs out</span>
+                      <span className="tabular-nums text-slate-300">{Math.ceil(timeLeftMs / 1000)}s left</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                      <div
+                        className={`h-full transition-all ${
+                          timeLeftMs <= 5000 ? "bg-rose-400" : "bg-gradient-to-r from-indigo-500 to-cyan-400"
+                        }`}
+                        style={{
+                          width: `${Math.max(
+                            0,
+                            Math.min(100, (timeLeftMs / (timeLimitForDomain(current.domain) ?? 1)) * 100)
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <p className="font-display font-semibold text-lg sm:text-2xl text-white leading-snug">
                   {question.question_text}
                 </p>
@@ -404,7 +495,6 @@ function TestRunner() {
                     const isVisual = question.format === "visual";
                     const isCorrect = optId === question.correct_answer;
                     const isPicked = optId === selected;
-                    const reveal = selected !== null;
 
                     return (
                       <button
@@ -445,7 +535,7 @@ function TestRunner() {
                   })}
                 </div>
 
-                {selected && (
+                {reveal && (
                   <div className="mt-6 pop-in">
                     <div
                       className={`rounded-2xl border px-4 py-3 text-sm ${
@@ -454,7 +544,11 @@ function TestRunner() {
                           : "border-rose-400/30 bg-rose-400/10 text-rose-100"
                       }`}
                     >
-                      {selected === question.correct_answer ? "Correct — well done." : `Not quite — the correct answer was: ${question.correct_answer}`}
+                      {timedOut
+                        ? `Time's up — the correct answer was: ${question.correct_answer}`
+                        : selected === question.correct_answer
+                        ? "Correct — well done."
+                        : `Not quite — the correct answer was: ${question.correct_answer}`}
                     </div>
                     {question.explanation && (
                       <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300 leading-relaxed">

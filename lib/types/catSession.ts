@@ -7,12 +7,14 @@ export interface AnsweredQuestion {
   userAnswer: string;
   correct: boolean;
   timeMs: number;
+  // True when the item's time limit expired before an option was picked.
+  timedOut?: boolean;
 }
 
 // Live state of a test in progress. This will be held in React state
 // on the assessment page (Session 7) and updated after every answer.
 export interface CATSession {
-  // Current difficulty per domain, 1-5. Starts at 3 (medium) for each.
+  // Current difficulty per domain, 1-12. Starts at 6 (near-typical) for each.
   difficultyByDomain: Record<Domain, number>;
 
   // How many questions have been asked per domain so far.
@@ -42,7 +44,7 @@ export function createInitialSession(): CATSession {
   const difficultyByDomain = {} as Record<Domain, number>;
   const countByDomain = {} as Record<Domain, number>;
   for (const d of domains) {
-    difficultyByDomain[d] = 3;
+    difficultyByDomain[d] = 6;
     countByDomain[d] = 0;
   }
 

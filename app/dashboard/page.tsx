@@ -163,7 +163,7 @@ export default function DashboardPage() {
                   </h2>
                   <p className="mt-3 text-slate-300 max-w-md">
                     Get your full cognitive profile: IQ score, percentile, confidence interval, and a 6-domain breakdown.
-                    Takes about 18 minutes.
+                    Takes about 20 minutes.
                   </p>
                   <a
                     href="/test"

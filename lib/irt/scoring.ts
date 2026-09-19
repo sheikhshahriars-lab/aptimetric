@@ -1,11 +1,13 @@
 // lib/irt/scoring.ts
+import { difficultyToB, ITEM_A, ITEM_C } from "@/lib/irt/itemParams";
+
 // Statistically grounded IRT (Item Response Theory) scoring engine.
 //
 // Model: 3-parameter logistic (3PL). For every answered item:
 //   P(correct | theta) = c + (1 - c) * 1 / (1 + exp(-1.702 * a * (theta - b)))
 //
-// Item parameters are derived from the platform's difficulty scale (1-5):
-//   b (difficulty location)  = (difficulty - 3) * 0.9   -> centered-ish on -1.8..1.8
+// Item parameters come from lib/irt/itemParams.ts: the visible difficulty
+// scale (1-12) maps onto b (item location) on the theta scale, with
 //   a (discrimination)       = 1.0
 //   c (guessing floor)       = 0.25  (four options, one right)
 //
@@ -18,9 +20,11 @@
 export interface AnswerSummary {
   domain: string;
   subdomain: string;
-  difficulty: number; // 1-5
+  difficulty: number; // 1-12
   correct: boolean;
   timeMs: number;
+  // True when the item's time limit expired before the user picked an option.
+  timedOut?: boolean;
 }
 
 interface Item {
@@ -40,10 +44,22 @@ export interface ThetaEstimate {
   standardErrorIq: number;
 }
 
+export interface SubtestEstimate {
+  subdomain: string;
+  theta: number;
+  sem: number;
+  iq: number;
+  // WAIS-style scaled score: standardized to mean 10, SD 3, clamped 1-19.
+  scaled: number;
+  count: number;
+}
+
 export interface ScoreResult {
   overall: ThetaEstimate;
   domains: Record<string, ThetaEstimate>;
   domainCounts: Record<string, number>;
+  // Subtest (subdomain-level) breakdown, keyed by domain.
+  subtests: Record<string, SubtestEstimate[]>;
   classification: string;
   answers: AnswerSummary[];
 }
@@ -87,11 +103,16 @@ export function iqToPercentile(iq: number): number {
 
 function itemFromSummary(summary: AnswerSummary): Item {
   return {
-    b: (Math.max(1, Math.min(5, summary.difficulty)) - 3) * 0.9,
-    a: 1.0,
-    c: 0.25,
+    b: difficultyToB(summary.difficulty),
+    a: ITEM_A,
+    c: ITEM_C,
     correct: summary.correct,
   };
+}
+
+// Convert an EAP theta estimate into a WAIS-style scaled score (mean 10, SD 3).
+export function thetaToScaledScore(theta: number): number {
+  return Math.round(Math.max(1, Math.min(19, 10 + 3 * theta)));
 }
 
 // EAP estimate: posterior = prior * likelihood, over the theta grid.
@@ -186,6 +207,7 @@ export function scoreTest(answerSummaries: AnswerSummary[]): ScoreResult {
 
   const domains: Record<string, ThetaEstimate> = {};
   const domainCounts: Record<string, number> = {};
+  const subtests: Record<string, SubtestEstimate[]> = {};
   const byDomain = new Map<string, AnswerSummary[]>();
 
   for (const s of answerSummaries) {
@@ -197,6 +219,7 @@ export function scoreTest(answerSummaries: AnswerSummary[]): ScoreResult {
 
   for (const [domain, list] of byDomain.entries()) {
     domains[domain] = eapEstimate(list.map(itemFromSummary));
+    subtests[domain] = subtestEstimates(list);
   }
 
   const overall = eapEstimate(items);
@@ -205,9 +228,36 @@ export function scoreTest(answerSummaries: AnswerSummary[]): ScoreResult {
     overall,
     domains,
     domainCounts,
+    subtests,
     classification: iqClassification(overall.iq),
     answers: answerSummaries,
   };
+}
+
+// Subdomain-level estimates for a single domain's answers.
+function subtestEstimates(list: AnswerSummary[]): SubtestEstimate[] {
+  const bySub = new Map<string, AnswerSummary[]>();
+  for (const s of list) {
+    const sub = s.subdomain || "other";
+    const arr = bySub.get(sub) ?? [];
+    arr.push(s);
+    bySub.set(sub, arr);
+  }
+
+  const out: SubtestEstimate[] = [];
+  for (const [subdomain, subList] of bySub.entries()) {
+    const est = eapEstimate(subList.map(itemFromSummary));
+    out.push({
+      subdomain,
+      theta: est.theta,
+      sem: est.sem,
+      iq: est.iq,
+      scaled: thetaToScaledScore(est.theta),
+      count: subList.length,
+    });
+  }
+  // Keep subtests stable and alphabet-ordered within a domain for display.
+  return out.sort((a, b) => a.subdomain.localeCompare(b.subdomain));
 }
 
 export const DOMAIN_LABELS: Record<string, string> = {

@@ -1,4 +1,7 @@
 // lib/generators/workingMemory.ts
+// Working Memory bank — 12-point difficulty scale (1..12).
+// Difficulty is driven by the length of the sequence the user must hold
+// in mind (digit/letter span) or the number of items they must sum.
 
 export type GeneratedQuestion = {
   domain: string;
@@ -35,16 +38,26 @@ function randomLetters(length: number): string[] {
   return shuffle(LETTERS).slice(0, length);
 }
 
+// 12 evenly spaced difficulty levels -> sequence length shown to the user.
+const SPAN_LENGTHS = [3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9];
+const BACKWARD_LENGTHS = [3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8];
+const RUNNING_LENGTHS = [3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8];
+
+function ordinal(n: number): string {
+  const suffixes = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
+}
+
 // --- Subdomain: digit_span ---
 function generateDigitSpan(difficulty: number): GeneratedQuestion {
-  const lengths = [4, 5, 6, 7, 8];
-  const length = lengths[difficulty - 1];
+  const length = SPAN_LENGTHS[difficulty - 1];
   const digits = randomDigits(length);
   const sequenceText = digits.join(" - ");
 
   const askPosition = randInt(0, length - 1);
   const positionLabel =
-    askPosition === 0 ? "first" : askPosition === length - 1 ? "last" : `${askPosition + 1}th`;
+    askPosition === 0 ? "first" : askPosition === length - 1 ? "last" : `${ordinal(askPosition + 1)}`;
   const answer = digits[askPosition].toString();
 
   const distractors = new Set<string>();
@@ -66,14 +79,13 @@ function generateDigitSpan(difficulty: number): GeneratedQuestion {
 
 // --- Subdomain: letter_span ---
 function generateLetterSpan(difficulty: number): GeneratedQuestion {
-  const lengths = [4, 5, 6, 7, 8];
-  const length = lengths[difficulty - 1];
+  const length = SPAN_LENGTHS[difficulty - 1];
   const letters = randomLetters(length);
   const sequenceText = letters.join(" - ");
 
   const askPosition = randInt(0, length - 1);
   const positionLabel =
-    askPosition === 0 ? "first" : askPosition === length - 1 ? "last" : `${askPosition + 1}th`;
+    askPosition === 0 ? "first" : askPosition === length - 1 ? "last" : `${ordinal(askPosition + 1)}`;
   const answer = letters[askPosition];
 
   const usedLetters = new Set(letters);
@@ -96,16 +108,28 @@ function generateLetterSpan(difficulty: number): GeneratedQuestion {
 
 // --- Subdomain: backward_recall ---
 function generateBackwardRecall(difficulty: number): GeneratedQuestion {
-  const lengths = [3, 4, 5, 6, 7];
-  const length = lengths[difficulty - 1];
+  const length = BACKWARD_LENGTHS[difficulty - 1];
   const digits = randomDigits(length);
   const sequenceText = digits.join(" - ");
   const reversed = [...digits].reverse().join("");
 
   const distractors = new Set<string>();
-  while (distractors.size < 3) {
+  let guard = 0;
+  while (distractors.size < 3 && guard < 60) {
+    guard++;
     const shuffled = shuffle([...digits]).join("");
     if (shuffled !== reversed) distractors.add(shuffled);
+  }
+  // Repeated digits can leave too few unique permutations — perturb one digit.
+  while (distractors.size < 3) {
+    const chars = reversed.split("");
+    const pos = randInt(0, chars.length - 1);
+    const original = chars[pos];
+    let replacement = randInt(0, 9).toString();
+    while (replacement === original) replacement = randInt(0, 9).toString();
+    chars[pos] = replacement;
+    const candidate = chars.join("");
+    if (candidate !== reversed) distractors.add(candidate);
   }
 
   return {
@@ -121,13 +145,14 @@ function generateBackwardRecall(difficulty: number): GeneratedQuestion {
 
 // --- Subdomain: running_total ---
 function generateRunningTotal(difficulty: number): GeneratedQuestion {
-  const lengths = [3, 4, 5, 6, 7];
-  const length = lengths[difficulty - 1];
-  const numbers = Array.from({ length }, () => randInt(1, 9));
+  const length = RUNNING_LENGTHS[difficulty - 1];
+  const span = difficulty <= 3 ? 5 : difficulty <= 7 ? 9 : 15;
+  const numbers = Array.from({ length }, () => randInt(1, span));
   const sequenceText = numbers.join(" - ");
 
-  const lastThree = numbers.slice(-3);
-  const answer = lastThree.reduce((a, b) => a + b, 0);
+  const lastCount = difficulty <= 2 ? 2 : 3;
+  const lastK = numbers.slice(-lastCount);
+  const answer = lastK.reduce((a, b) => a + b, 0);
 
   const distractors = new Set<number>();
   while (distractors.size < 3) {
@@ -140,18 +165,18 @@ function generateRunningTotal(difficulty: number): GeneratedQuestion {
     domain: "working_memory",
     subdomain: "running_total",
     difficulty,
-    question_text: `Memorize this sequence of numbers:\n\n${sequenceText}\n\nWhat is the SUM of the last 3 numbers shown?`,
+    question_text: `Memorize this sequence of numbers:\n\n${sequenceText}\n\nWhat is the SUM of the last ${lastCount} numbers shown?`,
     options: shuffle([answer.toString(), ...Array.from(distractors).map((n) => n.toString())]),
     correct_answer: answer.toString(),
-    explanation: `The last 3 numbers were ${lastThree.join(", ")}. Their sum is ${lastThree.join(" + ")} = ${answer}.`,
+    explanation: `The last ${lastCount} numbers were ${lastK.join(", ")}. Their sum is ${lastK.join(" + ")} = ${answer}.`,
   };
 }
 
 // --- Main entry point ---
 const generators = [generateDigitSpan, generateLetterSpan, generateBackwardRecall, generateRunningTotal];
 
-export function generateWorkingMemoryQuestion(difficulty: number = 3): GeneratedQuestion {
-  const clamped = Math.min(5, Math.max(1, difficulty));
+export function generateWorkingMemoryQuestion(difficulty: number = 6): GeneratedQuestion {
+  const clamped = Math.min(12, Math.max(1, difficulty));
   const generator = generators[randInt(0, generators.length - 1)];
   return generator(clamped);
 }

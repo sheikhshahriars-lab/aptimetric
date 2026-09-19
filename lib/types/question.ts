@@ -13,7 +13,7 @@ export interface TextQuestion {
   format: "text";
   domain: Domain;
   subdomain: string;
-  difficulty: number; // 1-5
+  difficulty: number; // 1-12
   question_text: string;
   options: string[]; // always 4
   correct_answer: string;
@@ -35,7 +35,7 @@ export interface VisualQuestion {
   format: "visual";
   domain: "visual_spatial";
   subdomain: string;
-  difficulty: number;
+  difficulty: number; // 1-12
   question_text: string;
   question_grid?: (ShapeSpec | null)[];
   question_shape?: ShapeSpec;

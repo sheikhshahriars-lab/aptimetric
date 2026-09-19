@@ -81,22 +81,29 @@ function buildOptions(correct: ShapeSpec, candidates: ShapeSpec[]): { options: s
 
 // --- Subdomain: pattern_completion ---
 function generatePatternCompletion(difficulty: number): GeneratedVisualQuestion {
-  const steps = difficulty <= 2 ? [90] : difficulty <= 4 ? [90, 180] : [90, 180, 270];
-  const step = steps[randInt(0, steps.length - 1)];
+  const degreeOptions =
+    difficulty <= 4 ? [90] : difficulty <= 8 ? [90, 180] : [90, 180, 270];
+  const step = degreeOptions[randInt(0, degreeOptions.length - 1)];
+  // At levels 9-12 a second rule (fill toggling) is combined with rotation.
+  const withFillToggle = difficulty >= 9 && Math.random() < 0.5;
   const type = randomType();
-  const filled = Math.random() < 0.5;
   const r0 = randomRotation();
 
-  const cell0: ShapeSpec = { type, rotation: r0, filled };
-  const cell1: ShapeSpec = { type, rotation: addRotation(r0, step), filled };
-  const cell2: ShapeSpec = { type, rotation: addRotation(r0, step * 2), filled };
-  const correct: ShapeSpec = { type, rotation: addRotation(r0, step * 3), filled };
+  const cell0: ShapeSpec = { type, rotation: r0, filled: withFillToggle ? true : Math.random() < 0.5 };
+  const fill0 = cell0.filled;
+  const cell1: ShapeSpec = { type, rotation: addRotation(r0, step), filled: withFillToggle ? !fill0 : fill0 };
+  const cell2: ShapeSpec = {
+    type,
+    rotation: addRotation(r0, step * 2),
+    filled: withFillToggle ? fill0 : fill0,
+  };
+  const correct: ShapeSpec = { type, rotation: addRotation(r0, step * 3), filled: withFillToggle ? !fill0 : fill0 };
 
   const candidates: ShapeSpec[] = [
-    { type, rotation: addRotation(r0, step * 3 + 90), filled },
-    { type, rotation: addRotation(r0, step * 3 - 90), filled },
-    { type, rotation: addRotation(r0, step * 3), filled: !filled },
-    { type: randomType() === type ? SHAPE_TYPES[(SHAPE_TYPES.indexOf(type) + 1) % 4] : randomType(), rotation: addRotation(r0, step * 3), filled },
+    { type, rotation: addRotation(r0, step * 3 + 90), filled: correct.filled },
+    { type, rotation: addRotation(r0, step * 3 - 90), filled: correct.filled },
+    { type, rotation: addRotation(r0, step * 3), filled: !correct.filled },
+    { type: randomType() === type ? SHAPE_TYPES[(SHAPE_TYPES.indexOf(type) + 1) % 4] : randomType(), rotation: addRotation(r0, step * 3), filled: correct.filled },
   ];
 
   const { options, optionShapes, correct_answer } = buildOptions(correct, candidates);
@@ -105,18 +112,21 @@ function generatePatternCompletion(difficulty: number): GeneratedVisualQuestion 
     domain: "visual_spatial",
     subdomain: "pattern_completion",
     difficulty,
-    question_text: `The shapes below follow a rotation pattern. Which option completes the sequence?`,
+    question_text: `The shapes below follow a pattern. Which option completes the sequence?`,
     question_grid: [cell0, cell1, cell2, null],
     options,
     optionShapes,
     correct_answer,
-    explanation: `Each shape rotates ${step}° from the one before it. The missing shape continues that pattern.`,
+    explanation: withFillToggle
+      ? `Each shape rotates ${step}° and alternates between filled and outline. The missing shape continues that pattern.`
+      : `Each shape rotates ${step}° from the one before it. The missing shape continues that pattern.`,
   };
 }
 
 // --- Subdomain: rotation_match ---
 function generateRotationMatch(difficulty: number): GeneratedVisualQuestion {
-  const degreeOptions = difficulty <= 2 ? [90] : difficulty <= 4 ? [90, 180] : [90, 180, 270];
+  const degreeOptions =
+    difficulty <= 4 ? [90] : difficulty <= 8 ? [90, 180] : [90, 180, 270];
   const askedDegrees = degreeOptions[randInt(0, degreeOptions.length - 1)];
   const base = randomShape();
   const correct: ShapeSpec = { type: base.type, rotation: addRotation(base.rotation, askedDegrees), filled: base.filled };
@@ -172,23 +182,26 @@ function generateReflectionMatch(difficulty: number): GeneratedVisualQuestion {
 
 // --- Subdomain: shape_analogy ---
 type Rule = { apply: (s: ShapeSpec) => ShapeSpec; desc: string };
-const RULES: Rule[] = [
-  { apply: (s) => ({ ...s, rotation: addRotation(s.rotation, 90) }), desc: "rotate 90° clockwise" },
-  { apply: (s) => ({ ...s, rotation: addRotation(s.rotation, 180) }), desc: "rotate 180°" },
-  { apply: (s) => ({ ...s, filled: !s.filled }), desc: "toggle fill (filled ↔ outline)" },
-  { apply: (s) => ({ ...s, mirrored: !s.mirrored }), desc: "mirror horizontally" },
+// Rules unlock as difficulty grows, so the set of candidate rules widens.
+const RULES: { rule: Rule; fromLevel: number }[] = [
+  { rule: { apply: (s) => ({ ...s, rotation: addRotation(s.rotation, 90) }), desc: "rotate 90° clockwise" }, fromLevel: 1 },
+  { rule: { apply: (s) => ({ ...s, filled: !s.filled }), desc: "toggle fill (filled ↔ outline)" }, fromLevel: 1 },
+  { rule: { apply: (s) => ({ ...s, rotation: addRotation(s.rotation, 180) }), desc: "rotate 180°" }, fromLevel: 4 },
+  { rule: { apply: (s) => ({ ...s, mirrored: !s.mirrored }), desc: "mirror horizontally" }, fromLevel: 6 },
+  { rule: { apply: (s) => ({ ...s, rotation: addRotation(s.rotation, 270) }), desc: "rotate 270° clockwise" }, fromLevel: 9 },
 ];
 
 function generateShapeAnalogy(difficulty: number): GeneratedVisualQuestion {
-  const availableRules = difficulty <= 3 ? RULES.slice(0, 2) : RULES;
-  const rule = availableRules[randInt(0, availableRules.length - 1)];
+  const available = RULES.filter((r) => r.fromLevel <= difficulty);
+  const rule = available[randInt(0, available.length - 1)].rule;
 
   const shapeA = randomShape();
   const shapeB = rule.apply(shapeA);
   const shapeC = randomShape();
   const correct = rule.apply(shapeC);
 
-  const wrongRules = RULES.filter((r) => r.desc !== rule.desc);
+  const wrongRules = RULES.filter((r) => r.rule.desc !== rule.desc).map((r) => r.rule);
+  shuffle(wrongRules);
   const candidates: ShapeSpec[] = wrongRules.slice(0, 3).map((r) => r.apply(shapeC));
   candidates.push(rule.apply(shapeA));
 
@@ -210,8 +223,8 @@ function generateShapeAnalogy(difficulty: number): GeneratedVisualQuestion {
 // --- Main entry point ---
 const generators = [generatePatternCompletion, generateRotationMatch, generateReflectionMatch, generateShapeAnalogy];
 
-export function generateVisualSpatialQuestion(difficulty: number = 3): GeneratedVisualQuestion {
-  const clamped = Math.min(5, Math.max(1, difficulty));
+export function generateVisualSpatialQuestion(difficulty: number = 6): GeneratedVisualQuestion {
+  const clamped = Math.min(12, Math.max(1, difficulty));
   const generator = generators[randInt(0, generators.length - 1)];
   return generator(clamped);
 }

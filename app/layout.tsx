@@ -17,7 +17,7 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: "Aptimetric — Scientifically Validated IQ Test & Cognitive Assessment",
   description:
-    "Aptimetric is a scientifically validated, adaptive IQ test built by psychometricians. Get a real IQ score, percentile, cognitive profile, and certificate in under 18 minutes.",
+    "Aptimetric is a scientifically validated, adaptive IQ test built by psychometricians. Get a real IQ score, percentile, cognitive profile, and certificate in under 20 minutes.",
 };
 
 export default function RootLayout({

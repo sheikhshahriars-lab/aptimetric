@@ -21,20 +21,28 @@ function SignupForm() {
   const next = searchParams.get("next") ?? "/dashboard";
 
   const [fullName, setFullName] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const currentYear = new Date().getFullYear();
+  const birthYears = Array.from({ length: currentYear - 1930 + 1 }, (_, i) => currentYear - i);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    const year = Number(birthYear);
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName.trim() },
+        data: {
+          full_name: fullName.trim(),
+          ...(Number.isFinite(year) && year > 1900 ? { birth_year: year } : {}),
+        },
       },
     });
     setLoading(false);
@@ -77,6 +85,22 @@ function SignupForm() {
                   placeholder="Your name (appears on your certificate)"
                   className="w-full px-4 py-3 rounded-xl bg-slate-900/80 border border-white/10 focus:border-indigo-500 outline-none text-white"
                 />
+              </div>
+              <div>
+                <label className="text-sm text-slate-300 mb-1 block">Year of birth <span className="text-slate-500">(optional)</span></label>
+                <select
+                  value={birthYear}
+                  onChange={(e) => setBirthYear(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-900/80 border border-white/10 focus:border-indigo-500 outline-none text-white"
+                >
+                  <option value="">Prefer not to say</option>
+                  {birthYears.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">Used only to compare your score against the right age group.</p>
               </div>
               <div>
                 <label className="text-sm text-slate-300 mb-1 block">Email</label>

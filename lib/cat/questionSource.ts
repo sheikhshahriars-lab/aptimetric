@@ -11,28 +11,45 @@ import { generateProcessingSpeedQuestion } from "@/lib/generators/processingSpee
 import { generateFluidReasoningQuestion } from "@/lib/generators/fluidReasoning";
 import { generateVisualSpatialQuestion } from "@/lib/generators/visualSpatial";
 
-// Fetches one random verbal question at the given difficulty from Supabase,
-// excluding questions already seen in the current session.
+// Fetches one random verbal question near the target difficulty from Supabase,
+// excluding questions already seen in the current session. If no question
+// exists at the exact level (sparse bank after a rescale), it widens to ±1.
 async function fetchVerbalQuestion(
   difficulty: number,
   askedSourceIds: Set<string>
 ): Promise<CATQuestion> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from("questions")
-    .select("*")
-    .eq("difficulty", difficulty)
-    .limit(200);
+  const selectAll = supabase.from("questions").select("*");
 
-  if (error || !data || data.length === 0) {
+  const exact = await selectAll.eq("difficulty", difficulty).order("id").limit(100);
+  if (exact.error) {
     throw new Error(
-      `Failed to fetch verbal question at difficulty ${difficulty}: ${error?.message ?? "no rows"}`
+      `Failed to fetch verbal question: ${exact.error.message}`
     );
   }
 
-  const fresh = data.filter((row) => !askedSourceIds.has(row.id));
-  const pool = fresh.length > 0 ? fresh : data;
+  let poolRows = exact.data ?? [];
+  if (poolRows.length === 0) {
+    const near = await selectAll
+      .gte("difficulty", Math.max(1, difficulty - 1))
+      .lte("difficulty", Math.min(12, difficulty + 1))
+      .order("id")
+      .limit(200);
+    if (near.error) {
+      throw new Error(
+        `Failed to fetch verbal question (near ${difficulty}): ${near.error.message}`
+      );
+    }
+    poolRows = near.data ?? [];
+  }
+
+  if (poolRows.length === 0) {
+    throw new Error(`Failed to fetch verbal question at difficulty ${difficulty}: no rows`);
+  }
+
+  const fresh = poolRows.filter((row) => !askedSourceIds.has(row.id));
+  const pool = fresh.length > 0 ? fresh : poolRows;
 
   const randomRow = pool[Math.floor(Math.random() * pool.length)];
   return adaptVerbalQuestion(randomRow);

@@ -10,6 +10,7 @@
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   full_name   text not null default '',
+  birth_year  integer,
   plan        text not null default 'free' check (plan in ('free','premium')),
   role        text not null default 'user' check (role in ('user','recruiter','admin')),
   created_at  timestamptz not null default now()
@@ -25,8 +26,12 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name)
-  values (new.id, coalesce(new.raw_user_meta_data->>'full_name', ''))
+  insert into public.profiles (id, full_name, birth_year)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', ''),
+    nullif(new.raw_user_meta_data->>'birth_year', '')::integer
+  )
   on conflict (id) do nothing;
   return new;
 end;
@@ -38,8 +43,11 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- backfill profiles for accounts that already exist
-insert into public.profiles (id, full_name)
-select u.id, coalesce(u.raw_user_meta_data->>'full_name', '')
+insert into public.profiles (id, full_name, birth_year)
+select
+  u.id,
+  coalesce(u.raw_user_meta_data->>'full_name', ''),
+  nullif(u.raw_user_meta_data->>'birth_year', '')::integer
 from auth.users u
 on conflict (id) do nothing;
 
@@ -100,6 +108,7 @@ create table if not exists public.assessment_results (
   suspicious     integer not null default 0,
   status         text not null default 'completed' check (status in ('completed','flagged','void')),
   invitation_token text,
+  age_band       text,
   created_at     timestamptz not null default now()
 );
 
